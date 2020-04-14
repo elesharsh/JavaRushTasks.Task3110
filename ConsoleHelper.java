@@ -5,14 +5,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 public class ConsoleHelper {
-    private final static BufferedReader bis = new BufferedReader(new InputStreamReader(System.in));
+    private final static BufferedReader READER = new BufferedReader(new InputStreamReader(System.in));
 
     public static void writeMessage(String message) {
         System.out.println(message);
     }
 
     public static String readString() throws IOException {
-        return bis.readLine();
+        return READER.readLine();
     }
 
     public static int readInt() throws IOException {

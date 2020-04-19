@@ -4,6 +4,8 @@ import com.javarush.task.task31.task3110.exception.WrongZipFileException;
 
 import java.io.IOException;
 
+import static com.javarush.task.task31.task3110.ConsoleHelper.writeMessage;
+
 public class Archiver {
     public static void main(String[] args) {
         Operation operation = null;
@@ -12,9 +14,9 @@ public class Archiver {
                 operation = askOperation();
                 CommandExecutor.execute(operation);
             } catch (WrongZipFileException e) {
-                ConsoleHelper.writeMessage("Вы не выбрали файл архива или выбрали неверный файл.");
+                writeMessage("Вы не выбрали файл архива или выбрали неверный файл.");
             } catch (Exception e) {
-                ConsoleHelper.writeMessage("Произошла ошибка. Проверьте введенные данные.");
+                writeMessage("Произошла ошибка. Проверьте введенные данные.");
                 e.printStackTrace();
             }
         } while (operation != Operation.EXIT);
@@ -27,10 +29,10 @@ public class Archiver {
     }
 
     private static void printOperationsRequest() {
-        ConsoleHelper.writeMessage("Выберите операцию:");
+        writeMessage("Выберите операцию:");
         String format = "%d - %s";
         for (Operation value : Operation.values()) {
-            ConsoleHelper.writeMessage(String.format(format, value.ordinal(), value.getDescription()));
+            writeMessage(String.format(format, value.ordinal(), value.getDescription()));
         }
     }
 }

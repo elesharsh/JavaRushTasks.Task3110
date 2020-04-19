@@ -75,8 +75,7 @@ public class ZipFileManager {
         try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
             ZipEntry entry;
             while ((entry = zipInputStream.getNextEntry()) != null) {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                copyData(zipInputStream, out);
+                copyData(zipInputStream, new ByteArrayOutputStream());
                 propertiesList.add(zipEntryToFileProperties(entry));
             }
         }

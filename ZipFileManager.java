@@ -3,9 +3,8 @@ package com.javarush.task.task31.task3110;
 import com.javarush.task.task31.task3110.exception.PathIsNotFoundException;
 import com.javarush.task.task31.task3110.exception.WrongZipFileException;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -25,9 +24,7 @@ public class ZipFileManager {
     public void createZip(Path source) throws Exception {
         // Проверяем, существует ли директория, где будет создаваться архив
         // При необходимости создаем ее
-        if (Files.notExists(zipFile.getParent())) {
-            Files.createDirectories(zipFile.getParent());
-        }
+        createPathIfNeeded(zipFile.getParent());
 
         // Создаем zip поток
         try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(zipFile))) {
@@ -50,11 +47,64 @@ public class ZipFileManager {
         }
     }
 
+    public void extractAll(Path outputFolder) throws Exception {
+        checkZipFileExists();
+        createPathIfNeeded(outputFolder);
+
+        try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                Path current = outputFolder.resolve(entry.getName());
+                if (entry.isDirectory()) {
+                    createPathIfNeeded(current);
+                } else {
+                    createPathIfNeeded(current.getParent());
+                    try {
+                        Files.copy(zipInputStream, current);
+                    } catch (FileAlreadyExistsException ignore) {
+                    }
+                }
+            }
+        }
+    }
+
+    public List<FileProperties> getFilesList() throws Exception {
+        checkZipFileExists();
+        List<FileProperties> propertiesList = new ArrayList<>();
+        try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                copyData(zipInputStream, new ByteArrayOutputStream());
+                propertiesList.add(zipEntryToFileProperties(entry));
+            }
+        }
+        return propertiesList;
+    }
+
+    private void createPathIfNeeded(Path path) throws IOException {
+        if (Files.notExists(path)) {
+            Files.createDirectories(path);
+        }
+    }
+
+    private void checkZipFileExists() throws WrongZipFileException {
+        if (!Files.isRegularFile(zipFile)) {
+            throw new WrongZipFileException();
+        }
+    }
+
     private void addNewZipEntry(ZipOutputStream zipOutputStream, Path filePath, Path fileName) throws Exception {
-        ZipEntry entry = new ZipEntry(fileName.toString());
-        zipOutputStream.putNextEntry(entry);
-        try (InputStream inputStream = Files.newInputStream(filePath.resolve(fileName))) {
-            copyData(inputStream, zipOutputStream);
+        Path fullPath = filePath.resolve(fileName);
+        if (fullPath.equals(zipFile)) return;
+        if (Files.isDirectory(fullPath)) {
+            ZipEntry entry = new ZipEntry(fileName.toString() + File.separator);
+            zipOutputStream.putNextEntry(entry);
+        } else {
+            ZipEntry entry = new ZipEntry(fileName.toString());
+            zipOutputStream.putNextEntry(entry);
+            try (InputStream inputStream = Files.newInputStream(fullPath)) {
+                copyData(inputStream, zipOutputStream);
+            }
         }
         zipOutputStream.closeEntry();
     }
@@ -65,21 +115,6 @@ public class ZipFileManager {
             out.write(buff);
         }
         out.flush();
-    }
-
-    public List<FileProperties> getFilesList() throws Exception {
-        if (!Files.isRegularFile(zipFile)) {
-            throw new WrongZipFileException();
-        }
-        List<FileProperties> propertiesList = new ArrayList<>();
-        try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
-            ZipEntry entry;
-            while ((entry = zipInputStream.getNextEntry()) != null) {
-                copyData(zipInputStream, new ByteArrayOutputStream());
-                propertiesList.add(zipEntryToFileProperties(entry));
-            }
-        }
-        return propertiesList;
     }
 
     private FileProperties zipEntryToFileProperties(ZipEntry entry) {

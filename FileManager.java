@@ -23,6 +23,7 @@ public class FileManager {
     }
 
     private void collectFileList(Path path) throws IOException {
+        boolean nothingAdded = true;
         if (Files.isRegularFile(path)) {
             // Добавляем только файлы
             fileList.add(rootPath.relativize(path));
@@ -33,7 +34,11 @@ public class FileManager {
             try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(path)) {
                 for (Path file : directoryStream) {
                     collectFileList(file);
+                    nothingAdded = false;
                 }
+            }
+            if (nothingAdded) {
+                fileList.add(rootPath.relativize(path));
             }
         }
     }

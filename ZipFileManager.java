@@ -4,10 +4,10 @@ import com.javarush.task.task31.task3110.exception.PathIsNotFoundException;
 import com.javarush.task.task31.task3110.exception.WrongZipFileException;
 
 import java.io.*;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -81,6 +81,34 @@ public class ZipFileManager {
         return propertiesList;
     }
 
+    public void removeFiles(List<Path> pathList) throws Exception {
+        checkZipFileExists();
+        Path tempCopyFile = Files.createTempFile("jrArchive", null);
+        try (ZipOutputStream zipOutput = new ZipOutputStream(Files.newOutputStream(tempCopyFile));
+             ZipInputStream zipInput = new ZipInputStream(Files.newInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zipInput.getNextEntry()) != null) {
+                String entryName = entry.getName();
+                String pathToDelete = getPathToDelete(pathList, entryName);
+
+                if (pathToDelete != null) {
+                    ConsoleHelper.writeMessage("Файл " + entryName + " удалён из архива.");
+                    if (pathToDelete.isEmpty()) continue;
+                    entry = new ZipEntry(pathToDelete);
+                }
+                zipOutput.putNextEntry(new ZipEntry(entry.getName()));
+                copyData(zipInput, zipOutput);
+                zipInput.closeEntry();
+                zipOutput.closeEntry();
+            }
+        }
+        Files.move(tempCopyFile, zipFile, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    public void removeFile(Path path) throws Exception {
+        removeFiles(Collections.singletonList(path));
+    }
+
     private void createPathIfNeeded(Path path) throws IOException {
         if (Files.notExists(path)) {
             Files.createDirectories(path);
@@ -123,5 +151,20 @@ public class ZipFileManager {
         long compSize = entry.getCompressedSize();
         int compMtd = entry.getMethod();
         return new FileProperties(name, size, compSize, compMtd);
+    }
+
+    private String getPathToDelete(List<Path> pathList, String entryPath) {
+        String toRemove = pathList.stream()
+                .filter(path -> entryPath.contains(path.toString()))
+                .findAny().orElse(Paths.get(""))
+                .toString();
+
+        String[] splitEntry = entryPath.split(File.separator);
+        String[] splitRemove = toRemove.split(File.separator);
+        toRemove = splitRemove.length == 0 ? "" : splitRemove[splitRemove.length - 1];
+        if (toRemove.isEmpty() || !Arrays.asList(splitEntry).contains(toRemove)) {
+            return null;
+        }
+        return entryPath.substring(0, entryPath.indexOf(toRemove));
     }
 }

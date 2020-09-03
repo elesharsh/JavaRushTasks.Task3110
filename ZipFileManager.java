@@ -10,12 +10,57 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
+
+import static com.javarush.task.task31.task3110.ConsoleHelper.writeMessage;
 
 public class ZipFileManager {
     // Полный путь zip файла
     private final Path zipFile;
+    private final ZipRewriter ADDER = (paths, zipIn, zipOut) -> {
+        List<String> addedNames = new ArrayList<>();
+        ZipEntry entry;
+        while ((entry = zipIn.getNextEntry()) != null) {
+            addedNames.add(entry.getName());
+            copyEntry(zipIn, zipOut, entry);
+        }
+        for (Path path : paths) {
+            checkFileExists(path);
+
+            boolean fileIsInArchive = addedNames.stream()
+                    .anyMatch(s ->
+                            Paths.get(s).getFileName().equals(path.getFileName()));
+            if (fileIsInArchive) {
+                writeMessage("Файл " + path.toString() + " уже есть в архиве.");
+            } else {
+                if (Files.isRegularFile(path)) {
+                    addNewZipEntry(zipOut, path.getParent(), path.getFileName());
+                    writeMessage("Файл " + path.toString() + " добавлен в архив.");
+                } else if (Files.isDirectory(path)) {
+                    archiveDirectory(path, zipOut, false);
+                    writeMessage("Каталог " + path.toString() + " добавлен в архив.");
+                }
+            }
+        }
+    };
+
+    private final ZipRewriter REMOVER = (paths, zipIn, zipOut) -> {
+        ZipEntry entry;
+        while ((entry = zipIn.getNextEntry()) != null) {
+            String entryName = entry.getName();
+            String pathToDelete = getPathToDelete(pathList, entryName);
+
+            if (pathToDelete != null) {
+                writeMessage("Файл " + entryName + " удалён из архива.");
+                if (pathToDelete.isEmpty()) continue;
+                entry = new ZipEntry(pathToDelete);
+            }
+            copyEntry(zipIn, zipOut, entry);
+        }
+    };
+
 
     public ZipFileManager(Path zipFile) {
         this.zipFile = zipFile;
@@ -30,13 +75,7 @@ public class ZipFileManager {
         try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(zipFile))) {
 
             if (Files.isDirectory(source)) {
-                // Если архивируем директорию, то нужно получить список файлов в ней
-                List<Path> fileNames = new FileManager(source).getFileList();
-
-                // Добавляем каждый файл в архив
-                for (Path fileName : fileNames) {
-                    addNewZipEntry(zipOutputStream, source, fileName);
-                }
+                archiveDirectory(source, zipOutputStream, true);
             } else if (Files.isRegularFile(source)) {
                 // Если архивируем отдельный файл, то нужно получить его директорию и имя
                 addNewZipEntry(zipOutputStream, source.getParent(), source.getFileName());
@@ -82,31 +121,64 @@ public class ZipFileManager {
     }
 
     public void removeFiles(List<Path> pathList) throws Exception {
-        checkZipFileExists();
-        Path tempCopyFile = Files.createTempFile("jrArchive", null);
-        try (ZipOutputStream zipOutput = new ZipOutputStream(Files.newOutputStream(tempCopyFile));
-             ZipInputStream zipInput = new ZipInputStream(Files.newInputStream(zipFile))) {
-            ZipEntry entry;
-            while ((entry = zipInput.getNextEntry()) != null) {
-                String entryName = entry.getName();
-                String pathToDelete = getPathToDelete(pathList, entryName);
-
-                if (pathToDelete != null) {
-                    ConsoleHelper.writeMessage("Файл " + entryName + " удалён из архива.");
-                    if (pathToDelete.isEmpty()) continue;
-                    entry = new ZipEntry(pathToDelete);
-                }
-                zipOutput.putNextEntry(new ZipEntry(entry.getName()));
-                copyData(zipInput, zipOutput);
-                zipInput.closeEntry();
-                zipOutput.closeEntry();
-            }
-        }
-        Files.move(tempCopyFile, zipFile, StandardCopyOption.REPLACE_EXISTING);
+        modifyZip(pathList, REMOVER);
     }
 
     public void removeFile(Path path) throws Exception {
         removeFiles(Collections.singletonList(path));
+    }
+
+    public void addFiles(List<Path> absolutePathList) throws Exception {
+        modifyZip(absolutePathList, ADDER);
+    }
+
+    public void addFile(Path absolutePath) throws Exception {
+        addFiles(Collections.singletonList(absolutePath));
+    }
+
+    private void archiveDirectory(Path source, ZipOutputStream zipOut, boolean onlyContent) throws Exception {
+        // Если архивируем директорию, то нужно получить список файлов в ней
+        List<Path> fileNames = new FileManager(source).getFileList();
+
+        // Добавляем каждый файл в архив
+        for (Path fileName : fileNames) {
+            if (onlyContent) {
+                addNewZipEntry(zipOut, source, fileName);
+            } else {
+                Path withParent = source.getFileName().resolve(fileName);
+                addNewZipEntry(zipOut, source.getParent(), withParent);
+            }
+        }
+    }
+
+    private void checkFileExists(Path path) throws PathIsNotFoundException {
+        if (!Files.exists(path)) {
+            throw new PathIsNotFoundException();
+        }
+    }
+
+    private void copyEntry(ZipInputStream zipIn, ZipOutputStream zipOut, ZipEntry entry) throws Exception {
+        try {
+            zipOut.putNextEntry(new ZipEntry(entry.getName()));
+            copyData(zipIn, zipOut);
+        } catch (ZipException e) {
+            if (!e.getMessage().contains("duplicate entry")) {
+                throw e;
+            }
+        } finally {
+            zipIn.closeEntry();
+            zipOut.closeEntry();
+        }
+    }
+
+    private void modifyZip(List<Path> pathList, ZipRewriter rewriter) throws Exception {
+        checkZipFileExists();
+        Path tempCopyFile = Files.createTempFile("jrArchive", null);
+        try (ZipOutputStream zipOutput = new ZipOutputStream(Files.newOutputStream(tempCopyFile));
+             ZipInputStream zipInput = new ZipInputStream(Files.newInputStream(zipFile))) {
+            rewriter.rewrite(pathList, zipInput, zipOutput);
+        }
+        Files.move(tempCopyFile, zipFile, StandardCopyOption.REPLACE_EXISTING);
     }
 
     private void createPathIfNeeded(Path path) throws IOException {
@@ -166,5 +238,9 @@ public class ZipFileManager {
             return null;
         }
         return entryPath.substring(0, entryPath.indexOf(toRemove));
+    }
+
+    private interface ZipRewriter {
+        void rewrite(List<Path> paths, ZipInputStream zipIn, ZipOutputStream zipOut) throws Exception;
     }
 }

@@ -15,9 +15,11 @@ public class ZipCreateCommand extends ZipCommand {
         try {
             writeMessage("Создание архива.");
             ZipFileManager zipFileManager = getZipFileManager();
+
             writeMessage("Введите полное имя файла или директории для архивации.");
             Path path = Paths.get(readString());
             zipFileManager.createZip(path);
+
             writeMessage("Архив создан.");
         } catch (PathIsNotFoundException e) {
             writeMessage("Вы неверно указали имя файла или директории.");

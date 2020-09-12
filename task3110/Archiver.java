@@ -26,7 +26,7 @@ public class Archiver {
         ConsoleHelper.writeMessage("");
         ConsoleHelper.writeMessage("Выберите операцию:");
         Arrays.stream(Operation.values()).forEach(operation ->
-                ConsoleHelper.writeMessage(operation.ordinal() + " - " + operation.name()));
+                ConsoleHelper.writeMessage(operation.ordinal() + " - " + operation.getDescription()));
 
         return Operation.values()[ConsoleHelper.readInt()];
     }

@@ -19,10 +19,6 @@ public class FileManager {
         collectFileList(rootPath);
     }
 
-    public FileManager(String rootPathString) throws IOException {
-        this(Paths.get(rootPathString));
-    }
-
     public List<Path> getFileList() {
         return Collections.unmodifiableList(fileList);
     }

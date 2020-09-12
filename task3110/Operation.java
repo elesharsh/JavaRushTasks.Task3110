@@ -8,6 +8,13 @@ public enum Operation {
     CONTENT("просмотреть содержимое архива"),
     EXIT("выход");
 
-    Operation(String s) {
+    private final String description;
+
+    Operation(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
     }
 }

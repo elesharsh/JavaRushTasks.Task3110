@@ -6,7 +6,6 @@ import com.javarush.task.task31.task3110.exception.WrongZipFileException;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -91,22 +90,11 @@ public class ZipFileManager {
                 if (entryName.endsWith(File.separator)) {
                     createPathIfNeeded(outputFolder.resolve(entryName));
                 } else {
-                    Path fullPath;
-                    Path fileName;
+                    Path fullPath = outputFolder.resolve(entryName);
 
-                    int lastIndexOfSlash = entryName.lastIndexOf(File.separator);
-                    if (entryName.contains(File.separator)) {
-                        fullPath = outputFolder.resolve(entryName.substring(0, lastIndexOfSlash));
-                        fileName = Paths.get(entryName.substring(lastIndexOfSlash));
-                    } else {
-                        fullPath = outputFolder;
-                        fileName = Paths.get(entryName);
-                    }
-                    createPathIfNeeded(fullPath);
+                    createPathIfNeeded(fullPath.getParent());
 
-                    Path filePath = Files.createFile(fullPath.resolve(fileName));
-
-                    try (OutputStream outStream = Files.newOutputStream(filePath)) {
+                    try (OutputStream outStream = Files.newOutputStream(fullPath)) {
                         copyData(zipIn, outStream);
                     }
                 }

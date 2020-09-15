@@ -4,9 +4,9 @@ import com.javarush.task.task31.task3110.exception.PathIsNotFoundException;
 import com.javarush.task.task31.task3110.exception.WrongZipFileException;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -96,6 +96,47 @@ public class ZipFileManager {
                 }
             }
         }
+    }
+
+    public void removeFiles(List<Path> pathList) throws Exception {
+        checkZipFile();
+
+        Path tempFile = Files.createTempFile("archive", "zip");
+
+        try (ZipInputStream zipIn = new ZipInputStream(Files.newInputStream(zipFile))) {
+            try (ZipOutputStream zipOut = new ZipOutputStream(Files.newOutputStream(tempFile))) {
+                ZipEntry entry;
+                while ((entry = zipIn.getNextEntry()) != null) {
+                    if (shouldBeRemoved(pathList, entry.getName())) {
+                        ConsoleHelper.writeMessage("Файл с именем " + entry.getName() + " удалён.");
+                    } else {
+                        zipOut.putNextEntry(entry);
+                        copyData(zipIn, zipOut);
+                        zipOut.closeEntry();
+                    }
+                }
+            }
+        }
+
+        Files.move(tempFile, zipFile, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    public void removeFile(Path path) throws Exception {
+        removeFiles(Collections.singletonList(path));
+    }
+
+    private boolean shouldBeRemoved(List<Path> paths, String pathStr) {
+        if (paths.contains(Paths.get(pathStr))) {
+            return true;
+        }
+
+        for (Path path : paths) {
+            if (pathStr.startsWith(path.toString() + File.separator)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void createPathIfNeeded(Path path) throws IOException {

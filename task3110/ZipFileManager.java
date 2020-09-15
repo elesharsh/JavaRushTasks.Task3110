@@ -86,15 +86,11 @@ public class ZipFileManager {
         try (ZipInputStream zipIn = new ZipInputStream(Files.newInputStream(zipFile))) {
             ZipEntry current;
             while ((current = zipIn.getNextEntry()) != null) {
-                String entryName = current.getName();
-                if (entryName.endsWith(File.separator)) {
-                    createPathIfNeeded(outputFolder.resolve(entryName));
-                } else {
-                    Path fullPath = outputFolder.resolve(entryName);
-
-                    createPathIfNeeded(fullPath.getParent());
-
-                    try (OutputStream outStream = Files.newOutputStream(fullPath)) {
+                Path resolve = outputFolder.resolve(current.getName());
+                boolean isDirectory = current.getName().endsWith(File.separator);
+                createPathIfNeeded(isDirectory ? resolve : resolve.getParent());
+                if (!isDirectory) {
+                    try (OutputStream outStream = Files.newOutputStream(resolve)) {
                         copyData(zipIn, outStream);
                     }
                 }

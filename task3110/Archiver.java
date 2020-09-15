@@ -16,6 +16,7 @@ public class Archiver {
                 ConsoleHelper.writeMessage("Вы не выбрали файл архива или выбрали неверный файл.");
             } catch (Exception e) {
                 ConsoleHelper.writeMessage("Произошла ошибка. Проверьте введенные данные.");
+                e.printStackTrace();
             }
 
         } while (operation != Operation.EXIT);

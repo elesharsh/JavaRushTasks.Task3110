@@ -10,12 +10,12 @@ import static com.javarush.task.task31.task3110.ConsoleHelper.writeMessage;
 public class ZipRemoveCommand extends ZipCommand {
     @Override
     public void execute() throws Exception {
-        writeMessage("Удаление файлов из архива.");
+        writeMessage("Удаление файла из архива.");
         ZipFileManager zipFileManager = getZipFileManager();
 
-        writeMessage("Введите путь внутри архива к файлу, который нужно удалить.");
+        writeMessage("Введите полный путь файла в архиве.");
         zipFileManager.removeFile(Paths.get(readString()));
 
-        writeMessage("Готово.");
+        writeMessage("Удаление из архива завершено.");
     }
 }
